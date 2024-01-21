@@ -85,6 +85,7 @@ def preprocess_documents(file_path):
     docs = parse_document(file_path)
     
     lemmatized_tokenized_docs, docnos = [], []
+    
     for doc in docs[:1]: # docs[:1] -> docs
         tokens = tokenize(doc['content'])
         lemmatized_tokens = lemmatize_tokens(tokens)
@@ -100,25 +101,27 @@ def preprocess_documents(file_path):
     with open("./saved_info.json", "w") as file:
         json.dump(info, file)
         
-    return BM25Okapi(lemmatized_tokenized_docs), docnos
+    return
     
 def preprocess_queries(file_path):
     queries = parse_queries(file_path)
     
-    lemmatized_tokenized_queries = []
+    nums, lemmatized_tokenized_queries = [], []
     
     for query in queries[:1]: # queries[:1] -> queries
         tokens = tokenize(query['content'])
         lemmatized_tokens = lemmatize_tokens(tokens)
         
+        nums.append(query['num'])
+        
         flattened_lemmatized_tokens = [token for sublist in lemmatized_tokens for token in sublist] # flattening a 2-D list
         lemmatized_tokenized_queries.append(flattened_lemmatized_tokens)
         
-    return lemmatized_tokenized_queries
+    return nums, lemmatized_tokenized_queries
 
 def main():
         
-    bm25, docnos = preprocess_documents('./documents/AP880212')
+    preprocess_documents('./documents/AP880212')
     
     with open("saved_info.json", "r") as file:
         info = json.load(file)
@@ -127,11 +130,14 @@ def main():
     
     bm25 = BM25Okapi(lemmatized_tokenized_docs)
         
-    lemmatized_tokenized_queries = preprocess_queries('./test')
+    nums, lemmatized_tokenized_queries = preprocess_queries('./queries')
     
-    scores = bm25.get_scores(lemmatized_tokenized_queries[0])
-    
-    for docno, score in zip(docnos, scores):
-        print(f'{score}, {docno}')
+    for num, lemmatized_tokenized_querie in zip(nums, lemmatized_tokenized_queries):
+        scores = bm25.get_scores(lemmatized_tokenized_querie)
+        
+        # sort zip(docnos, scores) for ranking
+        
+        for docno, score in zip(docnos, scores):
+            print(f'{num} Q0 {docno} rank {score} run_name')
     
 main()
