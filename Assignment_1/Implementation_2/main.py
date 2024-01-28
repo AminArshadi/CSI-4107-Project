@@ -1,12 +1,13 @@
+import os
+import re
+import nltk
+import json
+
 from nltk.stem import PorterStemmer
 from nltk.corpus import stopwords
 from rank_bm25 import BM25Okapi
 from pprint import pprint
-import spacy
-import nltk
-import re
-import os
-import json
+
 
 def read_file(file_path):
     with open(file_path, 'r') as file:
@@ -130,7 +131,7 @@ def main():
     # save_to_json(preprocessed_files, "./saved_preprocessed_files.json")
     # save_to_json(inverted_index, "./saved_inverted_index.json")
     
-    ###############################################################
+    ##############################################################################################################################
     
     preprocessed_files = load_from_json("saved_preprocessed_files.json")
     inverted_index = load_from_json("saved_inverted_index.json")

@@ -1,10 +1,12 @@
+import os
+import re
+import nltk
+import json
+import spacy
+
 from rank_bm25 import BM25Okapi
 from pprint import pprint
-import spacy
-import nltk
-import re
-import os
-import json
+
 
 def read_file(file_path):
     with open(file_path, 'r') as file:
@@ -139,22 +141,25 @@ def main():
     for filename in os.listdir(directory):
         file_path = os.path.join(directory, filename)
         preprocess_documents(file_path)
-    
-    # with open("saved_info.json", "r") as file:
-    #     info = json.load(file)
-    
-    # docnos, lemmatized_tokenized_docs = info['docnos'], info['lemmatized_tokenized_docs']
-    
-    # bm25 = BM25Okapi(lemmatized_tokenized_docs)
         
-    # nums, lemmatized_tokenized_queries = preprocess_queries('./queries')
+    ##############################################################################################################################
     
-    # for num, lemmatized_tokenized_querie in zip(nums, lemmatized_tokenized_queries):
-    #     scores = bm25.get_scores(lemmatized_tokenized_querie)
-        
-    #     sorted_doc_scores = sorted(zip(docnos, scores), key=lambda x: x[1], reverse=True) # Ranking documents based on their scores
-        
-    #     for rank, (docno, score) in enumerate(sorted_doc_scores):
-    #         print(f'{num} Q0 {docno} {rank + 1} {score} run_name')
+    with open("saved_info.json", "r") as file:
+        info = json.load(file)
     
-main()
+    docnos, lemmatized_tokenized_docs = info['docnos'], info['lemmatized_tokenized_docs']
+    
+    bm25 = BM25Okapi(lemmatized_tokenized_docs)
+        
+    nums, lemmatized_tokenized_queries = preprocess_queries('./queries')
+    
+    for num, lemmatized_tokenized_querie in zip(nums, lemmatized_tokenized_queries):
+        scores = bm25.get_scores(lemmatized_tokenized_querie)
+        
+        sorted_doc_scores = sorted(zip(docnos, scores), key=lambda x: x[1], reverse=True) # Ranking documents based on their scores
+        
+        for rank, (docno, score) in enumerate(sorted_doc_scores):
+            print(f'{num} Q0 {docno} {rank + 1} {score} run_name')
+    
+if __name__ == "__main__":
+    main()
