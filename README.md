@@ -1,5 +1,5 @@
-# Group number:
+## This repository contains CSI4107 assigments' files.
 
-# Members: Amin Arshadi (300189176), Alexandra Tulchinsky (300165864), and 
+## Group number: 8
 
-# This repository contains CSI4107 assigments' files.
+## Members: Amin Arshadi (300189176), Alexandra Tulchinsky (300165864), and 
