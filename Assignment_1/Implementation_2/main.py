@@ -145,7 +145,7 @@ def main():
             if docnos is not None:
                 useful_docnos.extend(docnos)
             
-    useful_preprocessed_files = {useful_docno: preprocessed_files[useful_docno] for useful_docno in useful_docnos}
+    useful_preprocessed_files = {useful_docno: preprocessed_files[useful_docno] for useful_docno in list(set(useful_docnos))}
     
     bm25 = BM25Okapi(useful_preprocessed_files.values())
     
