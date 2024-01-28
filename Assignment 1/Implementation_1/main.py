@@ -3,6 +3,7 @@ from pprint import pprint
 import spacy
 import nltk
 import re
+import os
 import json
 
 def read_file(file_path):
@@ -86,20 +87,33 @@ def preprocess_documents(file_path):
     
     lemmatized_tokenized_docs, docnos = [], []
     
-    for doc in docs[:1]: # docs[:1] -> docs
-        tokens = tokenize(doc['content'])
+    for doc in docs: # docs[:1] -> docs
+        content, docno = doc['content'], doc['docno']
+        tokens = tokenize(content)
         lemmatized_tokens = lemmatize_tokens(tokens)
-        docnos.append(doc['docno'])
+        docnos.append(docno)
         flattened_lemmatized_tokens = [token for sublist in lemmatized_tokens for token in sublist] # flattening a 2-D list
         lemmatized_tokenized_docs.append(flattened_lemmatized_tokens)
+        
+        print(f'Preprocessing of document {docno} finished.')
     
-    info = {
-        'docnos':docnos,
-        'lemmatized_tokenized_docs':lemmatized_tokenized_docs
+    if os.path.exists("./saved_info.json"): # If saved_info.json already exists
+        with open("./saved_info.json", "r") as file:
+            existing_info = json.load(file)
+        existing_info['docnos'].extend(docnos)
+        existing_info['lemmatized_tokenized_docs'].extend(lemmatized_tokenized_docs)
+        info = existing_info
+        
+    else: # If saved_info.json doesn't exist
+        info = {
+            'docnos': docnos,
+            'lemmatized_tokenized_docs': lemmatized_tokenized_docs
         }
     
     with open("./saved_info.json", "w") as file:
         json.dump(info, file)
+        
+    print(f'Preprocessing of all documents in {file_path} finished.')
         
     return
     
@@ -120,24 +134,27 @@ def preprocess_queries(file_path):
     return nums, lemmatized_tokenized_queries
 
 def main():
-        
-    preprocess_documents('./documents/AP880212')
     
-    with open("saved_info.json", "r") as file:
-        info = json.load(file)
+    directory = './documents'
+    for filename in os.listdir(directory):
+        file_path = os.path.join(directory, filename)
+        preprocess_documents(file_path)
     
-    docnos, lemmatized_tokenized_docs = info['docnos'], info['lemmatized_tokenized_docs']
+    # with open("saved_info.json", "r") as file:
+    #     info = json.load(file)
     
-    bm25 = BM25Okapi(lemmatized_tokenized_docs)
-        
-    nums, lemmatized_tokenized_queries = preprocess_queries('./queries')
+    # docnos, lemmatized_tokenized_docs = info['docnos'], info['lemmatized_tokenized_docs']
     
-    for num, lemmatized_tokenized_querie in zip(nums, lemmatized_tokenized_queries):
-        scores = bm25.get_scores(lemmatized_tokenized_querie)
+    # bm25 = BM25Okapi(lemmatized_tokenized_docs)
         
-        # sort zip(docnos, scores) for ranking
+    # nums, lemmatized_tokenized_queries = preprocess_queries('./queries')
+    
+    # for num, lemmatized_tokenized_querie in zip(nums, lemmatized_tokenized_queries):
+    #     scores = bm25.get_scores(lemmatized_tokenized_querie)
         
-        for docno, score in zip(docnos, scores):
-            print(f'{num} Q0 {docno} rank {score} run_name')
+    #     sorted_doc_scores = sorted(zip(docnos, scores), key=lambda x: x[1], reverse=True) # Ranking documents based on their scores
+        
+    #     for rank, (docno, score) in enumerate(sorted_doc_scores):
+    #         print(f'{num} Q0 {docno} {rank + 1} {score} run_name')
     
 main()
