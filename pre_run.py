@@ -1,5 +1,6 @@
-from utils.main import *
 import os
+
+from utils.main import *
 
 def main():
     preprocessed_files = {}

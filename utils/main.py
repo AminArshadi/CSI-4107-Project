@@ -1,12 +1,14 @@
+import nltk
+import spacy
+import contractions
+import subprocess
+import re
+import json
+
 from nltk.stem import PorterStemmer
 from nltk.corpus import stopwords
 from nltk.corpus import wordnet as wn
 from pprint import pprint
-import nltk
-import spacy
-import re
-import json
-import contractions
 
 STOP_WORDS = {
     'cos', 'noting', 'eighty', 'obtaining', 'soon', 'av', 'taken', 'usefully', 'seeing', 'this', 'ye', 'important', 'den', 'hasn', 'ends', 'something', 'an',
@@ -75,16 +77,18 @@ def parse_document(file_path):
         if doc.strip():
             
             docno = re.search('<DOCNO>(.*?)</DOCNO>', doc, re.DOTALL)
-            headline = re.search('<HEAD>(.*?)</HEAD>', doc, re.DOTALL)
-            text = re.search('<TEXT>(.*?)</TEXT>', doc, re.DOTALL)
+            headline_sections = re.findall('<HEAD>(.*?)</HEAD>', doc, re.DOTALL)
+            text_sections = re.findall('<TEXT>(.*?)</TEXT>', doc, re.DOTALL)
             
             docno = docno.group(1).strip() if docno else None
-            headline = headline.group(1).strip() if headline else ''
-            text = text.group(1).strip() if text else ''
+            headline = ' '.join([headline.strip() for headline in headline_sections]) if headline_sections else ''
+            text = ' '.join([text.strip() for text in text_sections]) if text_sections else ''
+            
+            content = ' '.join(filter(None, [headline, text])) # Filtering and concatenating headline and text content
             
             info = {
-                'docno':docno,
-                'content':headline + text
+                'docno': docno,
+                'content': content
                 }
 
             documents.append(info)
@@ -103,14 +107,18 @@ def parse_queries(file_path):
             num = re.search('<num>(.*?)<title>', query, re.DOTALL)
             title = re.search('<title>(.*?)<desc>', query, re.DOTALL)
             desc = re.search('<desc>(.*?)<narr>', query, re.DOTALL)
+            narr = re.search('<narr>(.*?)</top>', query, re.DOTALL)
             
             num = num.group(1).strip() if num else None
             title = title.group(1).strip() if title else ''
             desc = desc.group(1).strip() if desc else ''
+            narr = narr.group(1).strip() if narr else ''
+            
+            content = ' '.join(filter(None, [title, desc, narr])) # Filtering and concatenating title, desc, and narr content
             
             info = {
-                'num':num,
-                'content':title + desc
+                'num': num,
+                'content': content
                 }
 
             queries.append(info)
@@ -123,19 +131,19 @@ def preprocess(content):
     tokens = [token for token in tokens if token.isalpha() and (token not in STOP_WORDS)]
     
     ###
-    lemma_tokens = []
-    for token in tokens:
-        processed_token = NLP(token)
-        lemma_token = [token.lemma_ for token in processed_token]
-        lemma_tokens.extend(lemma_token)
-    return lemma_tokens
+    # lemma_tokens = []
+    # for token in tokens:
+    #     processed_token = NLP(token)
+    #     lemma_token = [token.lemma_ for token in processed_token]
+    #     lemma_tokens.extend(lemma_token)
+    # return lemma_tokens
     ###
     
     ### OR ###
     
     ###
-    # stemmed_tokens = [STEMMER.stem(token) for token in tokens]
-    # return stemmed_tokens
+    stemmed_tokens = [STEMMER.stem(token) for token in tokens]
+    return stemmed_tokens
     ###
 
 def preprocess_documents(file_path):
@@ -184,3 +192,11 @@ def save_to_json(data, file_name):
 def load_from_json(file_name):
     with open(file_name, "r") as file:
         return json.load(file)
+
+def run_trac_eval(executable):
+    process = subprocess.Popen(executable, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    stdout, stderr = process.communicate()
+    output = stdout.decode()
+    if stderr:
+        print("Errors:", stderr.decode())
+    return output
