@@ -64,10 +64,24 @@ STEMMER = PorterStemmer()
 NLP = spacy.load("en_core_web_sm")
 
 def read_file(file_path):
+    '''
+    Reads the entire content of a file specified by file_path.
+    Parameters:
+        file_path (str): The path to the file to be read.
+    Returns:
+        (str): The content of the file as a single string.
+    '''
     with open(file_path, 'r') as file:
         return file.read()
 
 def parse_document(file_path):
+    '''
+    Parses documents in a file, extracting document numbers, headlines, and text sections.
+    Parameters:
+        file_path (str): The path to the file containing documents to be parsed.
+    Returns:
+        (list of dict): A list of dictionaries, each representing a document with keys 'docno' for document number and 'content' for the concatenated headline and text content.
+    '''
     content = read_file(file_path)
 
     documents = []
@@ -96,6 +110,13 @@ def parse_document(file_path):
     return documents
 
 def parse_queries(file_path):
+    '''
+    Parses queries from a file, extracting query numbers, titles, descriptions, and narratives.
+    Parameters:
+        file_path (str): The path to the file containing queries to be parsed.
+    Returns:
+        (list of dict): A list of dictionaries, each representing a query with keys 'num' for query number and 'content' for the concatenated title, description, and narrative content.
+    '''
     content = read_file(file_path)
 
     queries = []
@@ -126,6 +147,13 @@ def parse_queries(file_path):
     return queries
 
 def preprocess(content):
+    '''
+    Performs preprocessing on the given content string. This includes expanding contractions, converting to lowercase, tokenizing, removing stopwords and non-alphabetic tokens, and stemming/lemmatizing the tokens.
+    Parameters:
+        content (str): The text content to preprocess.
+    Returns:
+        (list of str): A list of preprocessed and stemmed tokens from the content.
+    '''
     content = contractions.fix(content.lower()) # example: can't -> cannot
     tokens = nltk.word_tokenize(content)
     tokens = [token for token in tokens if token.isalpha() and (token not in STOP_WORDS)]
@@ -147,6 +175,13 @@ def preprocess(content):
     ###
 
 def preprocess_documents(file_path):
+    '''
+    Preprocesses all documents in the specified file, using the parse_document and preprocess functions.
+    Parameters:
+        file_path (str): The path to the file containing documents to preprocess.
+    Returns:
+        (dict): A dictionary where each key is a document number and the corresponding value is a list of preprocessed and stemmed tokens from that document.
+    '''
     docs = parse_document(file_path)
     
     result = {}
@@ -162,6 +197,13 @@ def preprocess_documents(file_path):
     return result
     
 def preprocess_queries(file_path):
+    '''
+    Preprocesses all queries in the specified file, using the parse_queries and preprocess functions.
+    Parameters:
+        file_path (str): The path to the file containing queries to preprocess.
+    Returns:
+        (dict): A dictionary where each key is a query number and the corresponding value is a list of preprocessed and stemmed tokens from that query.
+    '''
     queries = parse_queries(file_path)
     
     result = {}
@@ -176,6 +218,13 @@ def preprocess_queries(file_path):
     return result
 
 def get_inverted_index(doc_tokens_dict):
+    '''
+    Generates an inverted index from a dictionary of document tokens.
+    Parameters:
+        doc_tokens_dict (dict): A dictionary where each key is a document number and the corresponding value is a list of tokens from that document.
+    Returns:
+        (dict): An inverted index where each key is a token and the corresponding value is a list of document numbers in which the token appears.
+    '''
     inverted_index = {}
     for docno, stemmed_tokens in doc_tokens_dict.items():
         for token in stemmed_tokens:
@@ -186,14 +235,36 @@ def get_inverted_index(doc_tokens_dict):
     return inverted_index
 
 def save_to_json(data, file_name):
+    '''
+    Saves the given data to a file in JSON format.
+    Parameters:
+        data (any): The data to be saved to the file.
+        file_name (str): The name of the file to save the data to.
+    Returns:
+        None
+    '''
     with open(file_name, "w") as file:
         json.dump(data, file)
     
 def load_from_json(file_name):
+    '''
+    Loads data from a JSON file.
+    Parameters:
+        file_name (str): The name of the JSON file to load data from.
+    Returns:
+        (any): The data loaded from the JSON file.
+    '''
     with open(file_name, "r") as file:
         return json.load(file)
 
 def run_trac_eval(executable):
+    '''
+    Runs an external command (intended for trec_eval or similar) and captures its output.
+    Parameters:
+        executable (str): The command to run, typically a path to an executable file.
+    Returns:
+        (str): The standard output from running the command. Errors, if any, are printed to the console.
+    '''
     process = subprocess.Popen(executable, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     stdout, stderr = process.communicate()
     output = stdout.decode()
