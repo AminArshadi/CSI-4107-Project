@@ -4,7 +4,10 @@ import contractions
 import subprocess
 import re
 import json
+import time
 
+from concurrent.futures import ProcessPoolExecutor
+from itertools import islice
 from nltk.stem import PorterStemmer
 from nltk.corpus import stopwords
 from nltk.corpus import wordnet as wn
@@ -91,14 +94,26 @@ def parse_document(file_path):
         if doc.strip():
             
             docno = re.search('<DOCNO>(.*?)</DOCNO>', doc, re.DOTALL)
+            fileID_sections = re.findall('<FILEID>(.*?)</FILEID>', doc, re.DOTALL)
+            first_line_sections = re.findall('<1ST_LINE>(.*?)</1ST_LINE>', doc, re.DOTALL)
+            second_line_sections = re.findall('<2ND_LINE>(.*?)</2ND_LINE>', doc, re.DOTALL)
             headline_sections = re.findall('<HEAD>(.*?)</HEAD>', doc, re.DOTALL)
+            note_sections = re.findall('<NOTE>(.*?)</NOTE>', doc, re.DOTALL)
+            dateline_sections = re.findall('<DATELINE>(.*?)</DATELINE>', doc, re.DOTALL)
+            byline_sections = re.findall('<BYLINE>(.*?)</BYLINE>', doc, re.DOTALL)
             text_sections = re.findall('<TEXT>(.*?)</TEXT>', doc, re.DOTALL)
             
             docno = docno.group(1).strip() if docno else None
-            headline = ' '.join([headline.strip() for headline in headline_sections]) if headline_sections else ''
+            fileID = ' '.join([fileID_section.strip() for fileID_section in fileID_sections]) if fileID_sections else ''
+            first_line = ' '.join([first_line_section.strip() for first_line_section in first_line_sections]) if first_line_sections else ''
+            second_line = ' '.join([second_line_section.strip() for second_line_section in second_line_sections]) if second_line_sections else ''
+            headline = ' '.join([headline_section.strip() for headline_section in headline_sections]) if headline_sections else ''
+            note = ' '.join([note_section.strip() for note_section in note_sections]) if note_sections else ''
+            byline = ' '.join([byline_section.strip() for byline_section in byline_sections]) if byline_sections else ''
+            dateline = ' '.join([dateline_section.strip() for dateline_section in dateline_sections]) if dateline_sections else ''
             text = ' '.join([text.strip() for text in text_sections]) if text_sections else ''
             
-            content = ' '.join(filter(None, [headline, text])) # Filtering and concatenating headline and text content
+            content = ' '.join(filter(None, [fileID, first_line, second_line, headline, note, byline, dateline, text])) # Filtering and concatenating headline and text content
             
             info = {
                 'docno': docno,
@@ -135,6 +150,25 @@ def parse_queries(file_path):
             desc = desc.group(1).strip() if desc else ''
             narr = narr.group(1).strip() if narr else ''
             
+            phrases_to_be_removed = [
+                'The document ',
+                'Document ',
+                'A relevant document ',
+                'documents will',
+                'A document ',
+                'Relevant document ',
+                'Description:',
+                'To be relevant, a document ',
+                'To be relevant a document ',
+                'To be relevant, document :',
+                'Most relevant would be',
+                'Relevant documents'
+            ]
+            
+            for phrase in phrases_to_be_removed:
+                desc = desc.replace(phrase, '').strip()
+                narr = narr.replace(phrase, '').strip()
+            
             content = ' '.join(filter(None, [title, desc, narr])) # Filtering and concatenating title, desc, and narr content
             
             info = {
@@ -146,35 +180,44 @@ def parse_queries(file_path):
 
     return queries
 
-def preprocess(content):
-    '''
-    Performs preprocessing on the given content string. This includes expanding contractions, converting to lowercase, tokenizing, removing stopwords and non-alphabetic tokens, and stemming/lemmatizing the tokens.
-    Parameters:
-        content (str): The text content to preprocess.
-    Returns:
-        (list of str): A list of preprocessed and stemmed tokens from the content.
-    '''
-    content = contractions.fix(content.lower()) # example: can't -> cannot
-    tokens = nltk.word_tokenize(content)
-    tokens = [token for token in tokens if token.isalpha() and (token not in STOP_WORDS)]
+def preprocess(content, type):
+    if type == 'tokens':
+        content = contractions.fix(content.lower()) # example: can't -> cannot
+        tokens = nltk.word_tokenize(content)
+        tokens = [token for token in tokens if token.isalpha() and (token not in STOP_WORDS)]
+        
+        ###
+        # lemma_tokens = []
+        # for token in tokens:
+        #     processed_token = NLP(token)
+        #     lemma_token = [token.lemma_ for token in processed_token]
+        #     lemma_tokens.extend(lemma_token)
+        # return lemma_tokens
+        ###
+        
+        ### OR ###
+        
+        ###
+        stemmed_tokens = [STEMMER.stem(token) for token in tokens]
+        return stemmed_tokens
+        ###
     
-    ###
-    # lemma_tokens = []
-    # for token in tokens:
-    #     processed_token = NLP(token)
-    #     lemma_token = [token.lemma_ for token in processed_token]
-    #     lemma_tokens.extend(lemma_token)
-    # return lemma_tokens
-    ###
-    
-    ### OR ###
-    
-    ###
-    stemmed_tokens = [STEMMER.stem(token) for token in tokens]
-    return stemmed_tokens
-    ###
+    elif type == 'text':
+        text = contractions.fix(content.lower()) # example: can't -> cannot
+        text = re.sub(r'\s+', ' ', text).strip()
+        text = re.sub(r"('{2,})", '', text)
+        text = re.sub(r'[""]', '', text)
+        text = re.sub(r'`', '', text)
+        text = re.sub(r'\byou\.s\.\b', 'U.S.', text, flags=re.IGNORECASE)
+        text = re.sub(r'http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\\(\\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+', '', text) # Remove URLs
+        text = re.sub(r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b', '', text) # Remove email addresses
+        
+        return text
 
-def preprocess_documents(file_path):
+    else:
+        ValueError("Parameter type should be either 'tokens' or 'text'.")
+
+def preprocess_documents(file_path, type):
     '''
     Preprocesses all documents in the specified file, using the parse_document and preprocess functions.
     Parameters:
@@ -183,20 +226,20 @@ def preprocess_documents(file_path):
         (dict): A dictionary where each key is a document number and the corresponding value is a list of preprocessed and stemmed tokens from that document.
     '''
     docs = parse_document(file_path)
-    
+        
     result = {}
     
     for doc in docs:
         docno, content = doc['docno'], doc['content']
-        stemmed_tokens = preprocess(content)
-        result[docno] = stemmed_tokens
+        preprocessed_tokens = preprocess(content, type)
+        result[docno] = preprocessed_tokens
         
         print(f'Preprocessing of document {docno} finished.')
                 
     print(f'Preprocessing of all documents in {file_path} finished.')
     return result
     
-def preprocess_queries(file_path):
+def preprocess_queries(file_path, type):
     '''
     Preprocesses all queries in the specified file, using the parse_queries and preprocess functions.
     Parameters:
@@ -210,29 +253,89 @@ def preprocess_queries(file_path):
     
     for query in queries:
         num, content = query['num'], query['content']
-        stemmed_tokens = preprocess(content)
-        result[num] = stemmed_tokens
+        preprocessed_tokens = preprocess(content, type)
+        result[num] = preprocessed_tokens
     
     print(f'Preprocessing of all queries finished.')
         
     return result
 
-def get_inverted_index(doc_tokens_dict):
-    '''
-    Generates an inverted index from a dictionary of document tokens.
-    Parameters:
-        doc_tokens_dict (dict): A dictionary where each key is a document number and the corresponding value is a list of tokens from that document.
-    Returns:
-        (dict): An inverted index where each key is a token and the corresponding value is a list of document numbers in which the token appears.
-    '''
-    inverted_index = {}
-    for docno, stemmed_tokens in doc_tokens_dict.items():
-        for token in stemmed_tokens:
-            if token not in inverted_index:
-                inverted_index[token] = [docno]
-            elif docno not in inverted_index[token]:
-                inverted_index[token].append(docno)
+def build_partial_inverted_index(args):
+    doc_tokens_chunk, type = args
+    
+    partial_inverted_index = {}
+    if type == 'tokens':
+        for docno, preprocessed_tokens in doc_tokens_chunk.items():
+            for token in preprocessed_tokens:
+                if token not in partial_inverted_index:
+                    partial_inverted_index[token] = [docno]
+                elif docno not in partial_inverted_index[token]:
+                    partial_inverted_index[token].append(docno)
+    
+    elif type == 'text':
+        for docno, text in doc_tokens_chunk.items():
+            preprocessed_tokens = preprocess(text, type='tokens')
+            for token in preprocessed_tokens:
+                if token not in partial_inverted_index:
+                    partial_inverted_index[token] = [docno]
+                elif docno not in partial_inverted_index[token]:
+                    partial_inverted_index[token].append(docno)
+    return partial_inverted_index
+    
+def merge_partial_indexes(partial_indexes):
+    final_inverted_index = {}
+    
+    for partial_index in partial_indexes:
+        for token, docnos in partial_index.items():
+            if token not in final_inverted_index:
+                final_inverted_index[token] = docnos
+            else:
+                final_inverted_index[token] = list(set(final_inverted_index[token] + docnos))
+    return final_inverted_index
+        
+def get_inverted_index(doc_tokens_dict, type):
+    if type not in ['tokens', 'text']:
+        ValueError("Parameter type should be either 'tokens' or 'text'.")
+
+    items, n_chunks = list(doc_tokens_dict.items()), 10
+    chunk_size = max(1, len(items) // n_chunks)
+    doc_tokens_chunks = [({k: v for k, v in items[i:i + chunk_size]}, type) for i in range(0, len(items), chunk_size)]
+    
+    with ProcessPoolExecutor() as executor:
+        partial_indexes = list(executor.map(build_partial_inverted_index, doc_tokens_chunks))
+        
+    inverted_index = merge_partial_indexes(partial_indexes)
     return inverted_index
+
+def get_useful_preprocessed_files(preprocessed_files, inverted_index, query, type):
+    if type == 'tokens':
+        useful_docnos = []
+        for query_token in query:
+            docnos = inverted_index.get(query_token, None)
+            if docnos is not None:
+                useful_docnos.extend(docnos)
+                
+        useful_preprocessed_files = {useful_docno: preprocessed_files[useful_docno] for useful_docno in list(set(useful_docnos))}
+        return useful_preprocessed_files
+    
+    elif type == 'text':
+        useful_docnos = []
+        query = preprocess(query, type='tokens')
+        for query_token in query:
+            docnos = inverted_index.get(query_token, None)
+            if docnos is not None:
+                useful_docnos.extend(docnos)
+                
+        useful_preprocessed_files = {useful_docno: preprocessed_files[useful_docno] for useful_docno in list(set(useful_docnos))}
+        return useful_preprocessed_files
+    
+    else:
+        ValueError("Parameter type should be either 'tokens' or 'text'.")
+
+def chunks(data, size):
+    iterator = iter(data)
+    for first in iterator:
+        yield [first] + list(islice(iterator, size - 1))
 
 def save_to_json(data, file_name):
     '''
@@ -256,6 +359,13 @@ def load_from_json(file_name):
     '''
     with open(file_name, "r") as file:
         return json.load(file)
+
+def write_results_into_text_file(num, sorted_doc_scores, run_name):
+    print(f'Adding the results of query {num} to the result.txt file ...')
+    with open('./trec_eval/results/result.txt', 'a') as result_file:
+        for rank, (docno, score) in enumerate(sorted_doc_scores, start=1):
+            result_file.write(f'{num} Q0 {docno} {rank} {score} {run_name}\n')
+    print('Done.')
 
 def run_trac_eval(executable):
     '''
