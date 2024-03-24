@@ -79,11 +79,16 @@ def read_file(file_path):
 
 def parse_document(file_path):
     '''
-    Parses documents in a file, extracting document numbers, headlines, and text sections.
+    Parses the content of a document file, extracting structured information based on predefined tags such as <DOCNO>, <FILEID>, and others.
+    Each document within the file is expected to be separated by a <DOC> tag.
+    
     Parameters:
-        file_path (str): The path to the file containing documents to be parsed.
+        file_path (str): The path to the file containing the document(s) to be parsed.
+    
     Returns:
-        (list of dict): A list of dictionaries, each representing a document with keys 'docno' for document number and 'content' for the concatenated headline and text content.
+        list of dict: A list where each item represents a document as a dictionary. The keys in the dictionary include 'docno' and 'content',
+        where 'docno' is the document number extracted from the <DOCNO> tag, and 'content' is a string that concatenates the content extracted
+        from the <FILEID>, <1ST_LINE>, <2ND_LINE>, <HEAD>, <NOTE>, <DATELINE>, <BYLINE>, and <TEXT> tags of the document.
     '''
     content = read_file(file_path)
 
@@ -126,11 +131,15 @@ def parse_document(file_path):
 
 def parse_queries(file_path):
     '''
-    Parses queries from a file, extracting query numbers, titles, descriptions, and narratives.
+    Parses the content of a queries file, extracting structured information such as query number, title, description, and narrative.
+    Each query within the file is expected to be separated by a <top> tag.
+    
     Parameters:
-        file_path (str): The path to the file containing queries to be parsed.
+        file_path (str): The path to the file containing the queries to be parsed.
+    
     Returns:
-        (list of dict): A list of dictionaries, each representing a query with keys 'num' for query number and 'content' for the concatenated title, description, and narrative content.
+        list of dict: A list where each item represents a query as a dictionary. The keys in the dictionary include 'num' (query number) and 'content',
+        where 'content' is a string that concatenates the content extracted from the <title>, <desc>, and <narr> tags of the query.
     '''
     content = read_file(file_path)
 
@@ -181,6 +190,18 @@ def parse_queries(file_path):
     return queries
 
 def preprocess(content, type):
+    '''
+    Preprocesses the given content based on the specified type ('tokens' or 'text'). For 'tokens', it tokenizes the content, fixes contractions, 
+    filters out non-alphabetic tokens and stopwords, and applies stemming. For 'text', it fixes contractions, removes special characters, URLs, 
+    email addresses, and normalizes some abbreviations.
+    
+    Parameters:
+        content (str): The content to be preprocessed.
+        type (str): The type of preprocessing to apply. It can be 'tokens' for token-level preprocessing or 'text' for text-level preprocessing.
+    
+    Returns:
+        list or str: If 'type' is 'tokens', returns a list of preprocessed tokens. If 'type' is 'text', returns the preprocessed text as a string.
+    '''
     if type == 'tokens':
         content = contractions.fix(content.lower()) # example: can't -> cannot
         tokens = nltk.word_tokenize(content)
@@ -219,11 +240,14 @@ def preprocess(content, type):
 
 def preprocess_documents(file_path, type):
     '''
-    Preprocesses all documents in the specified file, using the parse_document and preprocess functions.
+    Parses and preprocesses the documents contained in the file specified by file_path, according to the specified type ('tokens' or 'text').
+    
     Parameters:
-        file_path (str): The path to the file containing documents to preprocess.
+        file_path (str): The path to the file containing the documents to be preprocessed.
+        type (str): The type of preprocessing to apply. It can be 'tokens' for token-level preprocessing or 'text' for text-level preprocessing.
+    
     Returns:
-        (dict): A dictionary where each key is a document number and the corresponding value is a list of preprocessed and stemmed tokens from that document.
+        dict: A dictionary where each key is a document number ('docno') and the value is the preprocessed content of the document.
     '''
     docs = parse_document(file_path)
         
@@ -241,11 +265,14 @@ def preprocess_documents(file_path, type):
     
 def preprocess_queries(file_path, type):
     '''
-    Preprocesses all queries in the specified file, using the parse_queries and preprocess functions.
+    Parses and preprocesses the queries contained in the file specified by file_path, according to the specified type ('tokens' or 'text').
+    
     Parameters:
-        file_path (str): The path to the file containing queries to preprocess.
+        file_path (str): The path to the file containing the queries to be preprocessed.
+        type (str): The type of preprocessing to apply. It can be 'tokens' for token-level preprocessing or 'text' for text-level preprocessing.
+    
     Returns:
-        (dict): A dictionary where each key is a query number and the corresponding value is a list of preprocessed and stemmed tokens from that query.
+        dict: A dictionary where each key is a query number ('num') and the value is the preprocessed content of the query.
     '''
     queries = parse_queries(file_path)
     
@@ -261,6 +288,16 @@ def preprocess_queries(file_path, type):
     return result
 
 def build_partial_inverted_index(args):
+    '''
+    Builds a partial inverted index from a chunk of documents or text. This function is intended to be used with concurrent processing.
+    
+    Parameters:
+        args (tuple): A tuple containing two elements: a dictionary where keys are document numbers and values are lists of preprocessed tokens or preprocessed text, 
+        and a string indicating the type of content ('tokens' or 'text').
+    
+    Returns:
+        dict: A partial inverted index where each key is a token, and the value is a list of document numbers in which that token appears.
+    '''
     doc_tokens_chunk, type = args
     
     partial_inverted_index = {}
@@ -283,6 +320,15 @@ def build_partial_inverted_index(args):
     return partial_inverted_index
     
 def merge_partial_indexes(partial_indexes):
+    '''
+    Merges several partial inverted indexes into a final, comprehensive inverted index.
+    
+    Parameters:
+        partial_indexes (list of dict): A list where each element is a partial inverted index. Each partial inverted index is a dictionary where keys are tokens and values are lists of document numbers.
+    
+    Returns:
+        dict: A final inverted index that combines all the partial indexes. Each key is a token, and the value is a list of unique document numbers containing that token.
+    '''
     final_inverted_index = {}
     
     for partial_index in partial_indexes:
@@ -294,6 +340,16 @@ def merge_partial_indexes(partial_indexes):
     return final_inverted_index
         
 def get_inverted_index(doc_tokens_dict, type):
+    '''
+    Constructs an inverted index from a dictionary of documents or text. This function manages the division of the input into chunks, parallel processing of each chunk to build partial inverted indexes, and merging them into a final inverted index.
+    
+    Parameters:
+        doc_tokens_dict (dict): A dictionary where keys are document numbers and values are either lists of preprocessed tokens or preprocessed text, depending on the type specified.
+        type (str): The type of content in `doc_tokens_dict`. Can be 'tokens' for token lists or 'text' for full text.
+    
+    Returns:
+        dict: A final inverted index where each key is a token, and the value is a list of unique document numbers containing that token.
+    '''
     if type not in ['tokens', 'text']:
         ValueError("Parameter type should be either 'tokens' or 'text'.")
 
@@ -308,6 +364,18 @@ def get_inverted_index(doc_tokens_dict, type):
     return inverted_index
 
 def get_useful_preprocessed_files(preprocessed_files, inverted_index, query, type):
+    '''
+    Identifies and retrieves the subset of preprocessed files that are relevant to a given query, based on the inverted index and the type of preprocessing applied.
+    
+    Parameters:
+        preprocessed_files (dict): A dictionary where keys are document numbers and values are preprocessed content (either token lists or full text).
+        inverted_index (dict): An inverted index where each key is a token and the value is a list of document numbers containing that token.
+        query (str or list): The query to be matched against the documents, in the form of a string or a list of tokens, depending on the type.
+        type (str): Specifies the type of content in `query` and `preprocessed_files`. Can be 'tokens' for token lists or 'text' for full text.
+    
+    Returns:
+        dict: A subset of `preprocessed_files` that are relevant to the given query.
+    '''
     if type == 'tokens':
         useful_docnos = []
         for query_token in query:
@@ -333,6 +401,16 @@ def get_useful_preprocessed_files(preprocessed_files, inverted_index, query, typ
         ValueError("Parameter type should be either 'tokens' or 'text'.")
 
 def chunks(data, size):
+    '''
+    Yields consecutive chunks of a given size from the input data.
+    
+    Parameters:
+        data (iterable): The data to be chunked.
+        size (int): The size of each chunk.
+    
+    Returns:
+        generator: A generator yielding chunks of the input data, each chunk being a list of elements of the specified size, except possibly the last one which may be smaller.
+    '''
     iterator = iter(data)
     for first in iterator:
         yield [first] + list(islice(iterator, size - 1))
@@ -361,6 +439,17 @@ def load_from_json(file_name):
         return json.load(file)
 
 def write_results_into_text_file(num, sorted_doc_scores, run_name):
+    '''
+    Writes the results of query processing into a text file in a format suitable for evaluation. Each line corresponds to a document scored and ranked for a particular query.
+    
+    Parameters:
+        num (str): The query number.
+        sorted_doc_scores (list of tuples): A list where each tuple contains a document number and its corresponding score, sorted by the score in descending order.
+        run_name (str): A name for the run, which is used as an identifier in the output file.
+    
+    Returns:
+        None: This function writes results to a file and does not return any value.
+    '''
     print(f'Adding the results of query {num} to the result.txt file ...')
     with open('./trec_eval/results/result.txt', 'a') as result_file:
         for rank, (docno, score) in enumerate(sorted_doc_scores, start=1):
