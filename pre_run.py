@@ -1,12 +1,18 @@
-import os
-
 from utils.main import *
 
 def main():
+    '''
+    The main function for preprocessing documents, creating an inverted index, and saving the results to JSON files.
+    This function reads documents from a specified directory, preprocesses them to extract tokens and text, creates an inverted index based on the tokens, and saves the preprocessed data and the inverted index into separate JSON files. It utilizes concurrent processing to expedite the preprocessing of documents.
+    The function tracks and prints the time taken for preprocessing documents and creating the inverted index, providing insights into the efficiency of the implemented parallel processing approach.
+    Note:
+        Requires the `utils.main` module for preprocessing functions, `os` for directory operations, `time` for performance measurement, and `concurrent.futures.ProcessPoolExecutor` for parallel processing.
+    '''
     preprocessed_files_tokens, preprocessed_files_text = {}, {}
     directory = './documents'
     
     start_time = time.time()
+    print('Preprocessing all documents ...')
     with ProcessPoolExecutor() as executor:
         futures_tokens, futures_text = [], []
         

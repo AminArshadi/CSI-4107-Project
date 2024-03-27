@@ -1,6 +1,3 @@
-# python pre_run.py tokens
-# python main_tf_idf.py
-
 from utils.main import *
 from gensim.corpora import Dictionary
 from gensim.models import TfidfModel
@@ -8,6 +5,16 @@ from gensim import matutils
 from sklearn.metrics.pairwise import cosine_similarity
 
 def tf_idf_proccess(query_tokens, useful_preprocessed_files):
+    '''
+    Processes a query using the TF-IDF model to compute similarity scores between the query and a collection of documents.
+    Parameters:
+        query_tokens (list of str): The tokenized query.
+        useful_preprocessed_files (dict): A dictionary of preprocessed documents with document identifiers as keys and tokenized content as values.
+    Returns:
+        list of tuples: Each tuple contains a document identifier and its corresponding similarity score with the query, sorted in descending order of similarity.
+    Note:
+        This function utilizes Gensim's Dictionary, TfidfModel, and matutils, along with scikit-learn's cosine_similarity to calculate document scores. The process involves converting documents and the query into a bag-of-words model, applying TF-IDF transformation, and calculating cosine similarity scores.
+    '''
     dictionary = Dictionary(useful_preprocessed_files.values())
     corpus = [dictionary.doc2bow(doc) for doc in useful_preprocessed_files.values()]
     
@@ -28,6 +35,12 @@ def tf_idf_proccess(query_tokens, useful_preprocessed_files):
     return sorted_doc_scores
 
 def main():
+    '''
+    Main function that loads preprocessed tokens and an inverted index, preprocesses queries, applies TF-IDF processing to each query against a filtered set of useful documents, writes the ranked documents based on similarity scores to a file, and runs evaluation against a standard set of relevance judgements.
+    This function demonstrates how to integrate document preprocessing, query processing, TF-IDF based ranking, and evaluation within a comprehensive IR system.
+    Note:
+        The function assumes the existence of utility functions for loading JSON data, preprocessing queries, filtering relevant documents, writing results, and evaluating system performance using TREC evaluation scripts.
+    '''
     preprocessed_files_tokens = load_from_json("saved_preprocessed_files_tokens.json")
     inverted_index = load_from_json("saved_inverted_index.json")
     

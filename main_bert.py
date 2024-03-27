@@ -1,19 +1,20 @@
-# python pre_run.py text
-# python main_bert.py
-
-import os
-import torch
-import time
-
 from utils.main import *
 from semantic_text_similarity.models import WebBertSimilarity
 
-
-# BERT = WebBertSimilarity(device='cpu')
 BERT = WebBertSimilarity(device='cpu', batch_size=32)
 
-
 def bert_process(num, query_text, useful_preprocessed_files):
+    '''
+    Computes document relevance scores for a given query using BERT embeddings and writes the results to a file.
+    Parameters:
+        num (int): The query number for identification purposes.
+        query_text (str): The text of the query.
+        useful_preprocessed_files (dict): A dictionary mapping document identifiers to their corresponding preprocessed text.
+    Returns:
+        None: This function writes the sorted document scores directly to a result file and does not return any value.
+    Note:
+        Utilizes the WebBertSimilarity model for computing similarity scores between the query and each document in the corpus. The function logs processing duration and writes results to a specified result file.
+    '''
     print(f'Getting the results for query {num} ...')
     start_time = time.time()
     batch_pairs = [(query_text, doc) for doc in useful_preprocessed_files.values()] # Prepare batch pairs for each query and all preprocessed documents
@@ -32,6 +33,12 @@ def bert_process(num, query_text, useful_preprocessed_files):
     print('Done.')
 
 def main():
+    '''
+    The main execution function to process all queries using BERT-based similarity, rank documents, and evaluate the system.
+    It loads preprocessed document texts and an inverted index, processes each query to compute similarity scores with documents using BERT embeddings, and appends the results to a results file. Finally, it runs a TREC evaluation to assess the performance.
+    Note:
+        This function assumes the presence of preloaded data, a set of preprocessed queries, and utility functions for loading data, processing queries, and evaluating results.
+    '''
     preprocessed_files_text = load_from_json("saved_preprocessed_files_text.json")
     inverted_index = load_from_json("saved_inverted_index.json")
     
@@ -46,64 +53,6 @@ def main():
     output = run_trac_eval(executable)
     print(output)
     print('Done.')
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-# from transformers import AutoTokenizer, AutoModel
-    
-    
-    
-    
-    # tokenizer = AutoTokenizer.from_pretrained("bert-base-uncased")
-    # model = AutoModel.from_pretrained("bert-base-uncased")
-    
-    # input_ids = []
-    # attention_masks = []
-        
-    # for text in preprocessed_files.values():
-        
-    #     encoded_inputs = tokenizer(text, padding=False, truncation=True) # Tokenize texts and prepare input tensors
-    #     input_ids.append(encoded_inputs['input_ids'])
-    #     attention_masks.append(encoded_inputs['attention_mask'])
-    
-    # max_length = max([len(ids) for ids in input_ids])
-        
-    # input_ids = [ids + [tokenizer.pad_token_id]*(max_length-len(ids)) for ids in input_ids]
-    # attention_masks = [mask + [0]*(max_length-len(mask)) for mask in attention_masks]
-
-    # input_ids = torch.tensor(input_ids)
-    # attention_masks = torch.tensor(attention_masks)
-        
-    # outputs = model(input_ids=input_ids, attention_mask=attention_masks) # Feed inputs to model
-    
-    # embeddings = outputs.last_hidden_state # Extract embeddings
-    
-    # cls_embeddings = embeddings[:, 0, :] # For the purpose of neural ranking
-    
-    # print('Writing into cls_embeddings.json ...')
-    # save_to_json(cls_embeddings, "./cls_embeddings.json")
         
 if __name__ == "__main__":
     main()

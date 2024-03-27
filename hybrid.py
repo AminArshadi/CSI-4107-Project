@@ -1,9 +1,5 @@
 from utils.main import *
 
-import os
-
-# 0.4288
-
 FILES_WEIGHTS = {
     'all-MiniLM-L6-v2.txt': 2.2,
     'bm25.txt': 4,
@@ -14,6 +10,12 @@ TOTAL_WEIGHTS = sum(FILES_WEIGHTS.values())
 DIRECTORY = './trec_eval/results'
 
 def main():
+    '''
+    Combines and normalizes results from different IR models, weighting and merging scores to produce a hybrid result file.
+    This function reads scores from specified result files, applies normalization and weighting to these scores based on predefined weights, then averages these weighted scores across all models to produce a final score for each document. The final scores are written to a new result file, and the TREC evaluation tool is run to assess performance.
+    Note:
+        Assumes result files exist in a specified directory and weights are predefined. The function showcases a method for integrating scores from multiple IR models to enhance result accuracy and diversity.
+    '''
     new_results = [{} for _ in range(50)]
     
     for file_name, weight in FILES_WEIGHTS.items():
